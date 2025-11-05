@@ -2,23 +2,24 @@ import { useState } from 'react';
 import ControlPanel from './components/ControlPanel';
 import Canvas3D from './components/Canvas3D';
 import ResultsPanel from './components/ResultsPanel';
+import type { DiceRoll } from './types/dice';
 
 function App() {
   const [backgroundColor, setBackgroundColor] = useState('#1a1a2e');
   const [objectColor, setObjectColor] = useState('#0f4c75');
   const [rotationSpeed, setRotationSpeed] = useState(1);
   const [textureUrl, setTextureUrl] = useState('');
-  const [results, setResults] = useState<string[]>([]);
+  const [diceRolls, setDiceRolls] = useState<DiceRoll[]>([]);
 
-  const addResult = (result: string) => {
-    setResults((prev) => [...prev, result]);
+  const addDiceRoll = (roll: DiceRoll) => {
+    setDiceRolls((prev) => [...prev, roll]);
   };
 
   return (
     <div className="h-screen w-full bg-gray-900 text-white overflow-hidden">
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 shadow-lg">
         <h1 className="text-xl md:text-2xl font-bold text-blue-400">
-          3D Viewer Application
+          Roll A Dice - RPG Dice Roller
         </h1>
       </header>
 
@@ -33,7 +34,7 @@ function App() {
             onObjectColorChange={setObjectColor}
             onRotationSpeedChange={setRotationSpeed}
             onTextureUrlChange={setTextureUrl}
-            onAddResult={addResult}
+            onAddDiceRoll={addDiceRoll}
           />
         </aside>
 
@@ -51,7 +52,7 @@ function App() {
         </section>
 
         <aside className="w-full lg:w-80 bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700 overflow-y-auto shrink-0">
-          <ResultsPanel results={results} />
+          <ResultsPanel diceRolls={diceRolls} />
         </aside>
       </main>
     </div>
