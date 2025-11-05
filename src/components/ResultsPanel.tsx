@@ -26,9 +26,7 @@ function ResultsPanel({ results }: ResultsPanelProps) {
             />
           </svg>
           <p className="text-sm text-gray-500">No activity yet</p>
-          <p className="text-xs text-gray-600 mt-1">
-            Actions will appear here
-          </p>
+          <p className="text-xs text-gray-600 mt-1">Actions will appear here</p>
         </div>
       ) : (
         <ul className="space-y-2" role="log" aria-label="Activity log">
@@ -54,7 +52,8 @@ function ResultsPanel({ results }: ResultsPanelProps) {
       {results.length > 0 && (
         <div className="pt-4 text-center">
           <p className="text-xs text-gray-500">
-            {results.length} {results.length === 1 ? 'action' : 'actions'} recorded
+            {results.length} {results.length === 1 ? 'action' : 'actions'}{' '}
+            recorded
           </p>
         </div>
       )}

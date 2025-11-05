@@ -37,7 +37,7 @@ function App() {
           />
         </aside>
 
-        <section 
+        <section
           className="flex-1 min-h-[300px] lg:min-h-0 bg-gray-900"
           role="main"
           aria-label="3D Canvas View"

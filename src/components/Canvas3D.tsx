@@ -10,7 +10,12 @@ interface Canvas3DProps {
 
 type LoadingState = 'idle' | 'loading' | 'success' | 'error';
 
-function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: Canvas3DProps) {
+function Canvas3D({
+  backgroundColor,
+  objectColor,
+  rotationSpeed,
+  textureUrl,
+}: Canvas3DProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -23,83 +28,100 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const container = canvasRef.current;
+    if (!container) return;
 
-    try {
-      setCanvasLoading(true);
-      setError(null);
+    let isSubscribed = true;
 
-      const scene = new THREE.Scene();
-      sceneRef.current = scene;
+    const initCanvas = async () => {
+      try {
+        const scene = new THREE.Scene();
+        sceneRef.current = scene;
 
-      const camera = new THREE.PerspectiveCamera(
-        75,
-        canvasRef.current.clientWidth / canvasRef.current.clientHeight,
-        0.1,
-        1000
-      );
-      camera.position.z = 5;
-      cameraRef.current = camera;
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          container.clientWidth / container.clientHeight,
+          0.1,
+          1000
+        );
+        camera.position.z = 5;
+        cameraRef.current = camera;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      canvasRef.current.appendChild(renderer.domElement);
-      rendererRef.current = renderer;
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
 
-      const geometry = new THREE.BoxGeometry(2, 2, 2);
-      const material = new THREE.MeshPhongMaterial({ color: objectColor });
-      const mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-      meshRef.current = mesh;
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        const material = new THREE.MeshPhongMaterial({ color: objectColor });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        meshRef.current = mesh;
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      scene.add(ambientLight);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      directionalLight.position.set(5, 5, 5);
-      scene.add(directionalLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
 
-      const handleResize = () => {
-        if (!canvasRef.current || !camera || !renderer) return;
-        const width = canvasRef.current.clientWidth;
-        const height = canvasRef.current.clientHeight;
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height);
-      };
+        const handleResize = () => {
+          if (!container || !camera || !renderer) return;
+          const width = container.clientWidth;
+          const height = container.clientHeight;
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+          renderer.setSize(width, height);
+        };
 
-      window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', handleResize);
 
-      const animate = () => {
-        animationRef.current = requestAnimationFrame(animate);
-        if (meshRef.current) {
-          meshRef.current.rotation.x += 0.01 * rotationSpeed;
-          meshRef.current.rotation.y += 0.01 * rotationSpeed;
+        const animate = () => {
+          animationRef.current = requestAnimationFrame(animate);
+          if (meshRef.current) {
+            meshRef.current.rotation.x += 0.01 * rotationSpeed;
+            meshRef.current.rotation.y += 0.01 * rotationSpeed;
+          }
+          renderer.render(scene, camera);
+        };
+
+        setTimeout(() => {
+          if (isSubscribed) {
+            setCanvasLoading(false);
+            animate();
+          }
+        }, 500);
+
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+          }
+          if (renderer && container.contains(renderer.domElement)) {
+            container.removeChild(renderer.domElement);
+            renderer.dispose();
+          }
+        };
+      } catch (err) {
+        if (isSubscribed) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to initialize 3D canvas'
+          );
+          setCanvasLoading(false);
         }
-        renderer.render(scene, camera);
-      };
+      }
+    };
 
-      setTimeout(() => {
-        setCanvasLoading(false);
-        animate();
-      }, 500);
+    const cleanup = initCanvas();
 
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-        if (rendererRef.current && canvasRef.current) {
-          canvasRef.current.removeChild(rendererRef.current.domElement);
-          rendererRef.current.dispose();
-        }
-      };
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to initialize 3D canvas');
-      setCanvasLoading(false);
-    }
-  }, []);
+    return () => {
+      isSubscribed = false;
+      cleanup.then((cleanupFn) => cleanupFn?.());
+    };
+  }, [objectColor, rotationSpeed]);
 
   useEffect(() => {
     if (sceneRef.current) {
@@ -108,29 +130,46 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
   }, [backgroundColor]);
 
   useEffect(() => {
-    if (meshRef.current && meshRef.current.material instanceof THREE.MeshPhongMaterial) {
+    if (
+      meshRef.current &&
+      meshRef.current.material instanceof THREE.MeshPhongMaterial
+    ) {
       meshRef.current.material.color.set(objectColor);
     }
   }, [objectColor]);
 
   useEffect(() => {
+    let isSubscribed = true;
+
     if (!textureUrl || !meshRef.current) {
-      if (meshRef.current && meshRef.current.material instanceof THREE.MeshPhongMaterial) {
+      if (
+        meshRef.current &&
+        meshRef.current.material instanceof THREE.MeshPhongMaterial
+      ) {
         meshRef.current.material.map = null;
         meshRef.current.material.needsUpdate = true;
       }
-      setTextureLoading('idle');
+      if (isSubscribed) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTextureLoading('idle');
+      }
       return;
     }
 
-    setTextureLoading('loading');
-    setError(null);
+    if (isSubscribed) {
+      setTextureLoading('loading');
+      setError(null);
+    }
 
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(
       textureUrl,
       (texture) => {
-        if (meshRef.current && meshRef.current.material instanceof THREE.MeshPhongMaterial) {
+        if (
+          isSubscribed &&
+          meshRef.current &&
+          meshRef.current.material instanceof THREE.MeshPhongMaterial
+        ) {
           meshRef.current.material.map = texture;
           meshRef.current.material.needsUpdate = true;
           setTextureLoading('success');
@@ -138,11 +177,17 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
       },
       undefined,
       (err) => {
-        setTextureLoading('error');
-        setError('Failed to load texture. Please check the URL.');
-        console.error('Texture loading error:', err);
+        if (isSubscribed) {
+          setTextureLoading('error');
+          setError('Failed to load texture. Please check the URL.');
+          console.error('Texture loading error:', err);
+        }
       }
     );
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [textureUrl]);
 
   if (error && canvasLoading) {
@@ -183,7 +228,7 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
   return (
     <div className="relative w-full h-full">
       <div ref={canvasRef} className="w-full h-full" />
-      
+
       {canvasLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-90">
           <div className="text-center">

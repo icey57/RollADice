@@ -17,7 +17,12 @@ A responsive 3D visualization application built with React, TypeScript, Three.js
 - **TypeScript** - Type safety
 - **Vite** - Build tool and dev server
 - **Three.js** - 3D graphics library
+- **React Three Fiber** - React renderer for Three.js
+- **React Three Drei** - Helper components for React Three Fiber
+- **Cannon-es** - Physics engine for 3D simulations
+- **Zustand** - Lightweight state management
 - **Tailwind CSS v4** - Utility-first CSS framework
+- **ESLint + Prettier** - Code quality and formatting
 
 ## Getting Started
 
@@ -51,17 +56,41 @@ npm run build
 npm run preview
 ```
 
+### Linting
+
+```bash
+npm run lint        # Check for issues
+npm run lint:fix    # Auto-fix issues
+```
+
+### Formatting
+
+```bash
+npm run format         # Format all files
+npm run format:check   # Check formatting
+```
+
+### Testing
+
+```bash
+npm run test
+```
+
 ## Project Structure
 
 ```
 src/
 ├── components/
 │   ├── ControlPanel.tsx    # Left panel with controls
-│   ├── Canvas3D.tsx         # Center 3D view with loading/error states
-│   └── ResultsPanel.tsx     # Right panel activity log
-├── App.tsx                  # Main app component with layout
-├── main.tsx                 # Entry point
-└── index.css                # Global styles with Tailwind
+│   ├── Canvas3D.tsx        # Center 3D view with loading/error states
+│   └── ResultsPanel.tsx    # Right panel activity log
+├── state/
+│   └── store.ts            # Zustand state management
+├── three/
+│   └── helpers.ts          # Three.js utility functions
+├── App.tsx                 # Main app component with layout
+├── main.tsx                # Entry point
+└── index.css               # Global styles with Tailwind
 ```
 
 ## Controls

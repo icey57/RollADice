@@ -44,8 +44,8 @@ function ControlPanel({
 
       <div className="space-y-4">
         <div>
-          <label 
-            htmlFor="bgColor" 
+          <label
+            htmlFor="bgColor"
             className="block text-sm font-medium text-gray-300 mb-2"
           >
             Background Color
@@ -66,8 +66,8 @@ function ControlPanel({
         </div>
 
         <div>
-          <label 
-            htmlFor="objColor" 
+          <label
+            htmlFor="objColor"
             className="block text-sm font-medium text-gray-300 mb-2"
           >
             Object Color
@@ -88,8 +88,8 @@ function ControlPanel({
         </div>
 
         <div>
-          <label 
-            htmlFor="rotSpeed" 
+          <label
+            htmlFor="rotSpeed"
             className="block text-sm font-medium text-gray-300 mb-2"
           >
             Rotation Speed: {rotationSpeed.toFixed(1)}x
@@ -108,8 +108,8 @@ function ControlPanel({
         </div>
 
         <div>
-          <label 
-            htmlFor="textureUrl" 
+          <label
+            htmlFor="textureUrl"
             className="block text-sm font-medium text-gray-300 mb-2"
           >
             Texture URL
