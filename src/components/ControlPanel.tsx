@@ -10,6 +10,13 @@ interface ControlPanelProps {
   onRotationSpeedChange: (speed: number) => void;
   onTextureUrlChange: (url: string) => void;
   onAddResult: (result: string) => void;
+  diceType: 'd20' | 'd100';
+  rollCount: number;
+  skipAnimation: boolean;
+  onDiceTypeChange: (type: 'd20' | 'd100') => void;
+  onRollCountChange: (count: number) => void;
+  onSkipAnimationChange: (skip: boolean) => void;
+  onRoll: () => void;
 }
 
 function ControlPanel({
@@ -22,6 +29,13 @@ function ControlPanel({
   onRotationSpeedChange,
   onTextureUrlChange,
   onAddResult,
+  diceType,
+  rollCount,
+  skipAnimation,
+  onDiceTypeChange,
+  onRollCountChange,
+  onSkipAnimationChange,
+  onRoll,
 }: ControlPanelProps) {
   const [tempTextureUrl, setTempTextureUrl] = useState(textureUrl);
 
@@ -30,19 +44,92 @@ function ControlPanel({
     onAddResult(`Texture applied: ${tempTextureUrl || 'None'}`);
   };
 
-  const handleRandomize = () => {
-    const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
-    onObjectColorChange(randomColor);
-    onAddResult(`Randomized object color: ${randomColor}`);
-  };
-
   return (
     <div className="p-4 space-y-6">
       <h2 className="text-lg md:text-xl font-semibold text-blue-300 mb-4">
-        Controls
+        Dice Controls
       </h2>
 
       <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Dice Type
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onDiceTypeChange('d20')}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                diceType === 'd20'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+              aria-label="Select d20"
+            >
+              D20
+            </button>
+            <button
+              onClick={() => onDiceTypeChange('d100')}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                diceType === 'd100'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+              aria-label="Select d100"
+            >
+              D100
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="rollCount"
+            className="block text-sm font-medium text-gray-300 mb-2"
+          >
+            Number of Dice: {rollCount}
+          </label>
+          <input
+            id="rollCount"
+            type="range"
+            min="1"
+            max="5"
+            step="1"
+            value={rollCount}
+            onChange={(e) => onRollCountChange(Number(e.target.value))}
+            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            aria-label="Select number of dice"
+          />
+        </div>
+
+        <div>
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={skipAnimation}
+              onChange={(e) => onSkipAnimationChange(e.target.checked)}
+              className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+              aria-label="Skip animation"
+            />
+            <span className="text-sm font-medium text-gray-300">
+              Skip Animation
+            </span>
+          </label>
+        </div>
+
+        <button
+          onClick={onRoll}
+          className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+          aria-label="Roll dice"
+        >
+          🎲 Roll Dice
+        </button>
+      </div>
+
+      <div className="pt-6 border-t border-gray-700">
+        <h3 className="text-md font-semibold text-gray-400 mb-4">
+          Visual Settings
+        </h3>
+        <div className="space-y-4">
         <div>
           <label 
             htmlFor="bgColor" 
@@ -133,15 +220,6 @@ function ControlPanel({
             </button>
           </div>
         </div>
-
-        <div className="pt-4 border-t border-gray-700">
-          <button
-            onClick={handleRandomize}
-            className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-            aria-label="Randomize object color"
-          >
-            Randomize Color
-          </button>
         </div>
       </div>
     </div>

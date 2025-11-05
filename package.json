@@ -20,7 +20,10 @@
   },
   "homepage": "https://github.com/icey57/RollADice#readme",
   "dependencies": {
+    "@react-three/drei": "^10.7.6",
+    "@react-three/fiber": "^9.4.0",
     "@types/three": "^0.181.0",
+    "cannon-es": "^0.20.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "three": "^0.181.0"

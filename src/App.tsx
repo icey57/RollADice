@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ControlPanel from './components/ControlPanel';
-import Canvas3D from './components/Canvas3D';
+import DiceCanvas from './components/DiceCanvas';
 import ResultsPanel from './components/ResultsPanel';
 
 function App() {
@@ -9,16 +9,36 @@ function App() {
   const [rotationSpeed, setRotationSpeed] = useState(1);
   const [textureUrl, setTextureUrl] = useState('');
   const [results, setResults] = useState<string[]>([]);
+  
+  const [diceType, setDiceType] = useState<'d20' | 'd100'>('d20');
+  const [rollCount, setRollCount] = useState(1);
+  const [skipAnimation, setSkipAnimation] = useState(false);
+  const [triggerRoll, setTriggerRoll] = useState(false);
 
   const addResult = (result: string) => {
     setResults((prev) => [...prev, result]);
+  };
+
+  const handleRoll = () => {
+    setTriggerRoll(true);
+  };
+
+  const handleRollStart = () => {
+    setTriggerRoll(false);
+  };
+
+  const handleRollComplete = (rollResults: number[]) => {
+    const resultStr = rollResults.length === 1
+      ? `Rolled ${diceType}: ${rollResults[0]}`
+      : `Rolled ${rollResults.length}x ${diceType}: [${rollResults.join(', ')}] (Total: ${rollResults.reduce((a, b) => a + b, 0)})`;
+    addResult(resultStr);
   };
 
   return (
     <div className="h-screen w-full bg-gray-900 text-white overflow-hidden">
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 shadow-lg">
         <h1 className="text-xl md:text-2xl font-bold text-blue-400">
-          3D Viewer Application
+          3D Dice Roller
         </h1>
       </header>
 
@@ -34,6 +54,13 @@ function App() {
             onRotationSpeedChange={setRotationSpeed}
             onTextureUrlChange={setTextureUrl}
             onAddResult={addResult}
+            diceType={diceType}
+            rollCount={rollCount}
+            skipAnimation={skipAnimation}
+            onDiceTypeChange={setDiceType}
+            onRollCountChange={setRollCount}
+            onSkipAnimationChange={setSkipAnimation}
+            onRoll={handleRoll}
           />
         </aside>
 
@@ -42,11 +69,13 @@ function App() {
           role="main"
           aria-label="3D Canvas View"
         >
-          <Canvas3D
-            backgroundColor={backgroundColor}
-            objectColor={objectColor}
-            rotationSpeed={rotationSpeed}
-            textureUrl={textureUrl}
+          <DiceCanvas
+            diceType={diceType}
+            rollCount={rollCount}
+            skipAnimation={skipAnimation}
+            onRollComplete={handleRollComplete}
+            triggerRoll={triggerRoll}
+            onRollStart={handleRollStart}
           />
         </section>
 
