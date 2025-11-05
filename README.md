@@ -1,14 +1,17 @@
 # Dice Skins System
 
-A comprehensive dice skins system with dynamic material switching for 3D dice. This system supports d20 and d100 dice with customizable material properties including metalness, roughness, emissive properties, and texture support.
+A comprehensive dice skins system with dynamic material switching for 3D dice. This system supports d20 and d100 dice with customizable material properties including metalness, roughness, emissive properties, and texture support. Now includes a full-featured, accessible UI controls system for managing dice configuration.
 
 ## Features
 
 - **Multiple Skin Presets**: Bronze, Gemstone, Silver, Gold, Crystal, Obsidian, and Jade
 - **Dynamic Skin Switching**: Update dice appearance in real-time without rerender glitches
 - **Extensible Material System**: Support for normal maps, emissive properties, and custom textures
+- **UI Controls System**: Responsive, accessible controls for ruleset, roll count, target value, animation, and skin selection
+- **State Management**: Observable store pattern with real-time validation
 - **Type-Safe**: Built with TypeScript for robust type checking
 - **Performance Optimized**: Texture caching and efficient material updates
+- **Accessibility Compliant**: WCAG 2.1 AA with dark mode, high contrast, and keyboard navigation
 
 ## Installation
 
@@ -18,6 +21,8 @@ npm run build
 ```
 
 ## Quick Start
+
+### Basic Dice Usage
 
 ```typescript
 import { D20, D100, getSkinDefinition } from './src/index';
@@ -46,6 +51,36 @@ const d100Result = d100.rollD100(); // Returns 1-100
 d20.update(deltaTime);
 d100.update(deltaTime);
 ```
+
+### UI Controls Quick Start
+
+```typescript
+import { ConfigStore, Controls } from './src/index';
+
+// Create a configuration store
+const store = new ConfigStore({
+  ruleset: 'DND',
+  rollCount: 1,
+  diceSkin: 'bronze',
+});
+
+// Create and render controls
+const controls = new Controls({
+  container: document.getElementById('controls')!,
+  store: store,
+});
+controls.render();
+
+// Subscribe to configuration changes
+store.subscribe((config) => {
+  console.log('Config updated:', config);
+  // Update your dice based on config
+});
+```
+
+For a complete working example, see `demo.html` or `controls-example.ts`.
+
+For full controls documentation, see [CONTROLS_README.md](./CONTROLS_README.md).
 
 ## Available Skins
 
@@ -363,6 +398,11 @@ src/
 │   ├── Dice.ts               # Base dice class
 │   ├── D20.ts                # D20 implementation
 │   └── D100.ts               # D100 implementation
+├── store/
+│   └── ConfigStore.ts        # State management with validation
+├── ui/
+│   ├── Controls.ts           # UI controls component
+│   └── styles.css            # Responsive, accessible styles
 └── index.ts                  # Public API exports
 ```
 

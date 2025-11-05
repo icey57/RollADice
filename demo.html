@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dice Controls Demo</title>
+  <link rel="stylesheet" href="src/ui/styles.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 1rem;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .header p {
+      font-size: 1.125rem;
+      opacity: 0.95;
+    }
+
+    .demo-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .controls-wrapper {
+      background: white;
+      border-radius: 12px;
+      padding: 0.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .config-display {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .config-display h2 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 0.5rem;
+    }
+
+    .config-display pre {
+      background: #f3f4f6;
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .dice-scene {
+      background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+      border-radius: 12px;
+      padding: 2rem;
+      min-height: 400px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+    }
+
+    .dice-scene__placeholder {
+      opacity: 0.7;
+    }
+
+    .dice-scene__placeholder h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .dice-scene__placeholder p {
+      font-size: 1rem;
+      color: #a0aec0;
+    }
+
+    @media (min-width: 768px) {
+      .demo-container {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .controls-wrapper {
+        grid-row: 1 / 3;
+      }
+    }
+
+    @media (max-width: 767px) {
+      body {
+        padding: 1rem 0.5rem;
+      }
+
+      .header h1 {
+        font-size: 1.75rem;
+      }
+
+      .header p {
+        font-size: 1rem;
+      }
+
+      .dice-scene {
+        min-height: 300px;
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎲 Dice Controls Demo</h1>
+    <p>Configure your dice rolls with accessible, responsive controls</p>
+  </div>
+
+  <div class="demo-container">
+    <div class="controls-wrapper">
+      <div id="controls-container"></div>
+    </div>
+
+    <div class="config-display">
+      <h2>Current Configuration</h2>
+      <pre id="config-output"></pre>
+    </div>
+
+    <div class="dice-scene">
+      <div class="dice-scene__placeholder">
+        <h3>3D Dice Renderer</h3>
+        <p>Dice visualization will appear here</p>
+        <p style="margin-top: 1rem; font-size: 0.875rem;">
+          Current skin: <strong id="current-skin">Bronze</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // This would normally import from the built dist files
+    // For demo purposes, we'll simulate the functionality
+
+    class ConfigStore {
+      constructor(initialConfig = {}) {
+        this.config = {
+          ruleset: initialConfig.ruleset || 'DND',
+          rollCount: initialConfig.rollCount || 1,
+          targetValue: initialConfig.targetValue !== undefined ? initialConfig.targetValue : null,
+          skipAnimation: initialConfig.skipAnimation || false,
+          diceSkin: initialConfig.diceSkin || 'bronze',
+        };
+        this.listeners = new Set();
+      }
+
+      getConfig() {
+        return { ...this.config };
+      }
+
+      setRuleset(ruleset) {
+        if (this.config.ruleset !== ruleset) {
+          this.config.ruleset = ruleset;
+          this.notifyListeners();
+        }
+      }
+
+      setRollCount(count) {
+        if (!Number.isInteger(count) || count < 1) {
+          throw new Error('Roll count must be a positive integer');
+        }
+        if (this.config.rollCount !== count) {
+          this.config.rollCount = count;
+          this.notifyListeners();
+        }
+      }
+
+      setTargetValue(value) {
+        if (value !== null && (!Number.isFinite(value) || value < 0)) {
+          throw new Error('Target value must be a non-negative number or null');
+        }
+        if (this.config.targetValue !== value) {
+          this.config.targetValue = value;
+          this.notifyListeners();
+        }
+      }
+
+      setSkipAnimation(skip) {
+        if (this.config.skipAnimation !== skip) {
+          this.config.skipAnimation = skip;
+          this.notifyListeners();
+        }
+      }
+
+      setDiceSkin(skin) {
+        if (this.config.diceSkin !== skin) {
+          this.config.diceSkin = skin;
+          this.notifyListeners();
+        }
+      }
+
+      subscribe(listener) {
+        this.listeners.add(listener);
+        return () => {
+          this.listeners.delete(listener);
+        };
+      }
+
+      notifyListeners() {
+        const configCopy = this.getConfig();
+        this.listeners.forEach(listener => listener(configCopy));
+      }
+    }
+
+    const skinDefinitions = {
+      bronze: { name: 'Bronze', description: 'Classic bronze finish with warm metallic tones' },
+      gemstone: { name: 'Gemstone', description: 'Sparkling gemstone appearance with high reflectivity' },
+      silver: { name: 'Silver', description: 'Polished silver with high reflectivity' },
+      gold: { name: 'Gold', description: 'Luxurious gold finish' },
+      crystal: { name: 'Crystal', description: 'Transparent crystal with rainbow reflections' },
+      obsidian: { name: 'Obsidian', description: 'Dark volcanic glass with subtle reflections' },
+      jade: { name: 'Jade', description: 'Smooth jade stone with organic feel' },
+    };
+
+    class Controls {
+      constructor(options) {
+        this.container = options.container;
+        this.store = options.store;
+        this.controlsElement = null;
+        this.unsubscribe = null;
+      }
+
+      render() {
+        const controls = document.createElement('div');
+        controls.className = 'dice-controls';
+        controls.setAttribute('role', 'form');
+        controls.setAttribute('aria-label', 'Dice configuration controls');
+
+        controls.innerHTML = `
+          <div class="dice-controls__group">
+            <label for="dice-ruleset" class="dice-controls__label">
+              Ruleset
+            </label>
+            <select 
+              id="dice-ruleset" 
+              class="dice-controls__select"
+              aria-label="Select game ruleset"
+            >
+              <option value="DND">Dungeons & Dragons (DND)</option>
+              <option value="COC">Call of Cthulhu (COC)</option>
+            </select>
+          </div>
+
+          <div class="dice-controls__group">
+            <label for="dice-roll-count" class="dice-controls__label">
+              Roll Count
+              <span class="dice-controls__required" aria-label="required">*</span>
+            </label>
+            <input 
+              type="number" 
+              id="dice-roll-count" 
+              class="dice-controls__input"
+              min="1"
+              step="1"
+              required
+              aria-required="true"
+              aria-describedby="dice-roll-count-error"
+            />
+            <span id="dice-roll-count-error" class="dice-controls__error" role="alert"></span>
+          </div>
+
+          <div class="dice-controls__group">
+            <label for="dice-target-value" class="dice-controls__label">
+              Target Value
+              <span class="dice-controls__optional">(optional)</span>
+            </label>
+            <input 
+              type="number" 
+              id="dice-target-value" 
+              class="dice-controls__input"
+              min="0"
+              step="1"
+              placeholder="Leave empty for no target"
+              aria-describedby="dice-target-value-help"
+            />
+            <span id="dice-target-value-help" class="dice-controls__help">
+              Set a target value to compare rolls against
+            </span>
+          </div>
+
+          <div class="dice-controls__group dice-controls__group--checkbox">
+            <label class="dice-controls__checkbox-label">
+              <input 
+                type="checkbox" 
+                id="dice-skip-animation" 
+                class="dice-controls__checkbox"
+                aria-label="Skip dice roll animation"
+              />
+              <span>Skip Animation</span>
+            </label>
+          </div>
+
+          <div class="dice-controls__group">
+            <label for="dice-skin" class="dice-controls__label">
+              Dice Skin
+            </label>
+            <select 
+              id="dice-skin" 
+              class="dice-controls__select"
+              aria-label="Select dice skin"
+            >
+            </select>
+          </div>
+        `;
+
+        this.controlsElement = controls;
+        this.container.appendChild(controls);
+
+        this.rulesetToggle = controls.querySelector('#dice-ruleset');
+        this.rollCountInput = controls.querySelector('#dice-roll-count');
+        this.targetValueInput = controls.querySelector('#dice-target-value');
+        this.skipAnimationCheckbox = controls.querySelector('#dice-skip-animation');
+        this.skinSelector = controls.querySelector('#dice-skin');
+
+        this.populateSkinSelector();
+        this.setupEventListeners();
+        this.syncWithStore();
+
+        this.unsubscribe = this.store.subscribe(() => {
+          this.syncWithStore();
+        });
+      }
+
+      populateSkinSelector() {
+        if (!this.skinSelector) return;
+
+        this.skinSelector.innerHTML = '';
+        
+        Object.keys(skinDefinitions).forEach((skinKey) => {
+          const skin = skinDefinitions[skinKey];
+          const option = document.createElement('option');
+          option.value = skinKey;
+          option.textContent = skin.name;
+          option.setAttribute('data-description', skin.description);
+          this.skinSelector.appendChild(option);
+        });
+      }
+
+      setupEventListeners() {
+        if (this.rulesetToggle) {
+          this.rulesetToggle.addEventListener('change', (e) => {
+            const value = e.target.value;
+            this.store.setRuleset(value);
+          });
+        }
+
+        if (this.rollCountInput) {
+          this.rollCountInput.addEventListener('input', (e) => {
+            const input = e.target;
+            const value = input.value.trim();
+            const errorElement = document.getElementById('dice-roll-count-error');
+
+            if (value === '') {
+              if (errorElement) {
+                errorElement.textContent = 'Roll count is required';
+              }
+              input.setCustomValidity('Roll count is required');
+              return;
+            }
+
+            const numValue = parseInt(value, 10);
+
+            if (!Number.isInteger(numValue) || numValue < 1) {
+              if (errorElement) {
+                errorElement.textContent = 'Must be a positive integer';
+              }
+              input.setCustomValidity('Must be a positive integer');
+              return;
+            }
+
+            if (errorElement) {
+              errorElement.textContent = '';
+            }
+            input.setCustomValidity('');
+
+            try {
+              this.store.setRollCount(numValue);
+            } catch (error) {
+              if (errorElement) {
+                errorElement.textContent = error.message;
+              }
+              input.setCustomValidity(error.message);
+            }
+          });
+
+          this.rollCountInput.addEventListener('blur', () => {
+            if (this.rollCountInput && this.rollCountInput.value.trim() === '') {
+              this.rollCountInput.value = String(this.store.getConfig().rollCount);
+            }
+          });
+        }
+
+        if (this.targetValueInput) {
+          this.targetValueInput.addEventListener('input', (e) => {
+            const input = e.target;
+            const value = input.value.trim();
+
+            if (value === '') {
+              input.setCustomValidity('');
+              this.store.setTargetValue(null);
+              return;
+            }
+
+            const numValue = parseInt(value, 10);
+
+            if (!Number.isFinite(numValue) || numValue < 0) {
+              input.setCustomValidity('Must be a non-negative number');
+              return;
+            }
+
+            input.setCustomValidity('');
+
+            try {
+              this.store.setTargetValue(numValue);
+            } catch (error) {
+              input.setCustomValidity(error.message);
+            }
+          });
+        }
+
+        if (this.skipAnimationCheckbox) {
+          this.skipAnimationCheckbox.addEventListener('change', (e) => {
+            const checked = e.target.checked;
+            this.store.setSkipAnimation(checked);
+          });
+        }
+
+        if (this.skinSelector) {
+          this.skinSelector.addEventListener('change', (e) => {
+            const value = e.target.value;
+            this.store.setDiceSkin(value);
+          });
+        }
+      }
+
+      syncWithStore() {
+        const config = this.store.getConfig();
+
+        if (this.rulesetToggle && this.rulesetToggle.value !== config.ruleset) {
+          this.rulesetToggle.value = config.ruleset;
+        }
+
+        if (this.rollCountInput && parseInt(this.rollCountInput.value, 10) !== config.rollCount) {
+          this.rollCountInput.value = String(config.rollCount);
+        }
+
+        if (this.targetValueInput) {
+          const currentValue = this.targetValueInput.value.trim();
+          const configValue = config.targetValue === null ? '' : String(config.targetValue);
+          if (currentValue !== configValue) {
+            this.targetValueInput.value = configValue;
+          }
+        }
+
+        if (this.skipAnimationCheckbox && this.skipAnimationCheckbox.checked !== config.skipAnimation) {
+          this.skipAnimationCheckbox.checked = config.skipAnimation;
+        }
+
+        if (this.skinSelector && this.skinSelector.value !== config.diceSkin) {
+          this.skinSelector.value = config.diceSkin;
+        }
+      }
+
+      destroy() {
+        if (this.unsubscribe) {
+          this.unsubscribe();
+          this.unsubscribe = null;
+        }
+
+        if (this.controlsElement) {
+          this.controlsElement.remove();
+          this.controlsElement = null;
+        }
+      }
+    }
+
+    // Initialize the demo
+    const store = new ConfigStore({
+      ruleset: 'DND',
+      rollCount: 1,
+      targetValue: null,
+      skipAnimation: false,
+      diceSkin: 'bronze',
+    });
+
+    const controls = new Controls({
+      container: document.getElementById('controls-container'),
+      store: store,
+    });
+
+    controls.render();
+
+    // Update the config display
+    const configOutput = document.getElementById('config-output');
+    const currentSkinDisplay = document.getElementById('current-skin');
+
+    function updateConfigDisplay(config) {
+      configOutput.textContent = JSON.stringify(config, null, 2);
+      if (currentSkinDisplay) {
+        currentSkinDisplay.textContent = skinDefinitions[config.diceSkin].name;
+      }
+    }
+
+    store.subscribe(updateConfigDisplay);
+    updateConfigDisplay(store.getConfig());
+  </script>
+</body>
+</html>

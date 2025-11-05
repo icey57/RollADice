@@ -17,6 +17,12 @@ export {
   clearTextureCache,
 } from './skins/materialFactory';
 
+export { ConfigStore } from './store/ConfigStore';
+export type { DiceConfig, Ruleset } from './store/ConfigStore';
+
+export { Controls } from './ui/Controls';
+export type { ControlsOptions } from './ui/Controls';
+
 export type {
   MaterialSettings,
   SkinDefinition,
