@@ -1,0 +1,27 @@
+{
+  "name": "dice-skins-system",
+  "version": "1.0.0",
+  "description": "A dice skins system with dynamic material switching for 3D dice",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo \"Tests not yet implemented\" && exit 0"
+  },
+  "keywords": [
+    "dice",
+    "3d",
+    "skins",
+    "materials"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/three": "^0.158.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "three": "^0.158.0"
+  }
+}
