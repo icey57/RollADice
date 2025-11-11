@@ -1,26 +1,94 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { Rule, RollResult, DiceSkin } from '../types';
+import { rollMultipleTimes } from '../utils/dice';
+import { getSkinById } from '../utils/skins';
 
 interface Canvas3DProps {
-  backgroundColor: string;
-  objectColor: string;
-  rotationSpeed: number;
-  textureUrl: string;
+  rule: Rule;
+  numberOfRolls: number;
+  targetValue: number | undefined;
+  currentSkinId: string;
+  skins: DiceSkin[];
+  isRolling: boolean;
+  onRoll: (result: RollResult) => void;
+  onRollingEnd: () => void;
 }
 
-type LoadingState = 'idle' | 'loading' | 'success' | 'error';
-
-function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: Canvas3DProps) {
+function Canvas3D({
+  rule,
+  numberOfRolls,
+  targetValue,
+  currentSkinId,
+  skins,
+  isRolling,
+  onRoll,
+  onRollingEnd,
+}: Canvas3DProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const meshRef = useRef<THREE.Mesh | null>(null);
+  const diceRef = useRef<THREE.Mesh | null>(null);
   const animationRef = useRef<number | null>(null);
-
   const [canvasLoading, setCanvasLoading] = useState(true);
-  const [textureLoading, setTextureLoading] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [skipAnimation, setSkipAnimation] = useState(false);
+  const diceStateRef = useRef<{
+    isAnimating: boolean;
+    velocity: THREE.Vector3;
+    angularVelocity: THREE.Vector3;
+    startTime: number;
+    targetTime: number;
+  }>({
+    isAnimating: false,
+    velocity: new THREE.Vector3(0, 0, 0),
+    angularVelocity: new THREE.Vector3(0, 0, 0),
+    startTime: 0,
+    targetTime: 1500,
+  });
+
+  const createDiceMaterial = (skinId: string): THREE.Material[] => {
+    const skin = getSkinById(skinId, skins.filter((s) => s.type === 'custom'));
+    
+    const materials: THREE.Material[] = [];
+    
+    if (skin && skin.imageUrl) {
+      const loader = new THREE.TextureLoader();
+      try {
+        const texture = loader.load(skin.imageUrl);
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
+        const material = new THREE.MeshPhongMaterial({
+          map: texture,
+          shininess: 100,
+        });
+        for (let i = 0; i < 6; i++) {
+          materials.push(material);
+        }
+      } catch {
+        const fallbackColor = skin.colors?.primary || '#CD853F';
+        const material = new THREE.MeshPhongMaterial({
+          color: fallbackColor,
+          shininess: 100,
+        });
+        for (let i = 0; i < 6; i++) {
+          materials.push(material);
+        }
+      }
+    } else {
+      const fallbackColor = skin?.colors?.primary || '#CD853F';
+      const material = new THREE.MeshPhongMaterial({
+        color: fallbackColor,
+        shininess: 100,
+      });
+      for (let i = 0; i < 6; i++) {
+        materials.push(material);
+      }
+    }
+
+    return materials;
+  };
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -30,6 +98,7 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
       setError(null);
 
       const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1a2e);
       sceneRef.current = scene;
 
       const camera = new THREE.PerspectiveCamera(
@@ -38,26 +107,34 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
         0.1,
         1000
       );
-      camera.position.z = 5;
+      camera.position.z = 4;
       cameraRef.current = camera;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
       renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.shadowMap.enabled = true;
       canvasRef.current.appendChild(renderer.domElement);
       rendererRef.current = renderer;
 
       const geometry = new THREE.BoxGeometry(2, 2, 2);
-      const material = new THREE.MeshPhongMaterial({ color: objectColor });
-      const mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-      meshRef.current = mesh;
+      const materials = createDiceMaterial(currentSkinId);
+      const dice = new THREE.Mesh(geometry, materials);
+      dice.castShadow = true;
+      dice.receiveShadow = true;
+      scene.add(dice);
+      diceRef.current = dice;
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
       scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
       directionalLight.position.set(5, 5, 5);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.camera.left = -10;
+      directionalLight.shadow.camera.right = 10;
+      directionalLight.shadow.camera.top = 10;
+      directionalLight.shadow.camera.bottom = -10;
       scene.add(directionalLight);
 
       const handleResize = () => {
@@ -73,10 +150,34 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
 
       const animate = () => {
         animationRef.current = requestAnimationFrame(animate);
-        if (meshRef.current) {
-          meshRef.current.rotation.x += 0.01 * rotationSpeed;
-          meshRef.current.rotation.y += 0.01 * rotationSpeed;
+
+        if (diceRef.current && diceStateRef.current.isAnimating) {
+          const state = diceStateRef.current;
+          const elapsed = Date.now() - state.startTime;
+          const progress = Math.min(elapsed / state.targetTime, 1);
+
+          if (progress < 0.7) {
+            diceRef.current.rotation.x += state.angularVelocity.x * 0.02;
+            diceRef.current.rotation.y += state.angularVelocity.y * 0.02;
+            diceRef.current.rotation.z += state.angularVelocity.z * 0.02;
+          } else {
+            const decelerationFactor = 1 - ((progress - 0.7) / 0.3) ** 2;
+            diceRef.current.rotation.x +=
+              state.angularVelocity.x * 0.02 * decelerationFactor;
+            diceRef.current.rotation.y +=
+              state.angularVelocity.y * 0.02 * decelerationFactor;
+            diceRef.current.rotation.z +=
+              state.angularVelocity.z * 0.02 * decelerationFactor;
+          }
+
+          if (progress >= 1) {
+            state.isAnimating = false;
+          }
+        } else if (diceRef.current) {
+          diceRef.current.rotation.x += 0.005;
+          diceRef.current.rotation.y += 0.008;
         }
+
         renderer.render(scene, camera);
       };
 
@@ -91,7 +192,11 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
           cancelAnimationFrame(animationRef.current);
         }
         if (rendererRef.current && canvasRef.current) {
-          canvasRef.current.removeChild(rendererRef.current.domElement);
+          try {
+            canvasRef.current.removeChild(rendererRef.current.domElement);
+          } catch {
+            // Element already removed
+          }
           rendererRef.current.dispose();
         }
       };
@@ -102,48 +207,47 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
   }, []);
 
   useEffect(() => {
-    if (sceneRef.current) {
-      sceneRef.current.background = new THREE.Color(backgroundColor);
-    }
-  }, [backgroundColor]);
-
-  useEffect(() => {
-    if (meshRef.current && meshRef.current.material instanceof THREE.MeshPhongMaterial) {
-      meshRef.current.material.color.set(objectColor);
-    }
-  }, [objectColor]);
-
-  useEffect(() => {
-    if (!textureUrl || !meshRef.current) {
-      if (meshRef.current && meshRef.current.material instanceof THREE.MeshPhongMaterial) {
-        meshRef.current.material.map = null;
-        meshRef.current.material.needsUpdate = true;
+    if (diceRef.current) {
+      const materials = createDiceMaterial(currentSkinId);
+      if (Array.isArray(materials)) {
+        (diceRef.current as any).material = materials;
+      } else {
+        diceRef.current.material = materials as any;
       }
-      setTextureLoading('idle');
-      return;
     }
+  }, [currentSkinId, skins]);
 
-    setTextureLoading('loading');
-    setError(null);
+  useEffect(() => {
+    if (isRolling && diceRef.current && !diceStateRef.current.isAnimating) {
+      diceStateRef.current.isAnimating = true;
+      diceStateRef.current.startTime = Date.now();
+      diceStateRef.current.angularVelocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20
+      );
 
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(
-      textureUrl,
-      (texture) => {
-        if (meshRef.current && meshRef.current.material instanceof THREE.MeshPhongMaterial) {
-          meshRef.current.material.map = texture;
-          meshRef.current.material.needsUpdate = true;
-          setTextureLoading('success');
+      const animationTime = skipAnimation ? 300 : 1500;
+      diceStateRef.current.targetTime = animationTime;
+
+      const delayBeforeResult = skipAnimation ? 200 : 1200;
+      const resultTimeout = setTimeout(() => {
+        if (!skipAnimation) {
+          const result = rollMultipleTimes(rule, numberOfRolls, targetValue);
+          onRoll(result);
+        } else {
+          const result = rollMultipleTimes(rule, numberOfRolls, targetValue);
+          onRoll(result);
         }
-      },
-      undefined,
-      (err) => {
-        setTextureLoading('error');
-        setError('Failed to load texture. Please check the URL.');
-        console.error('Texture loading error:', err);
-      }
-    );
-  }, [textureUrl]);
+        onRollingEnd();
+        setSkipAnimation(false);
+      }, delayBeforeResult);
+
+      return () => {
+        clearTimeout(resultTimeout);
+      };
+    }
+  }, [isRolling, rule, numberOfRolls, targetValue, skipAnimation, onRoll, onRollingEnd]);
 
   if (error && canvasLoading) {
     return (
@@ -183,66 +287,25 @@ function Canvas3D({ backgroundColor, objectColor, rotationSpeed, textureUrl }: C
   return (
     <div className="relative w-full h-full">
       <div ref={canvasRef} className="w-full h-full" />
-      
+
       {canvasLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-90">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-            <p className="text-lg text-gray-300">Initializing 3D Canvas...</p>
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4" />
+            <p className="text-lg text-gray-300">初始化 3D 骰子...</p>
           </div>
         </div>
       )}
 
-      {textureLoading === 'loading' && !canvasLoading && (
-        <div className="absolute top-4 right-4 bg-blue-600 bg-opacity-90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-            <span className="text-sm text-white">Loading texture...</span>
-          </div>
-        </div>
-      )}
-
-      {textureLoading === 'success' && (
-        <div className="absolute top-4 right-4 bg-green-600 bg-opacity-90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg animate-fade-in">
-          <div className="flex items-center space-x-2">
-            <svg
-              className="w-5 h-5 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            <span className="text-sm text-white">Texture loaded</span>
-          </div>
-        </div>
-      )}
-
-      {textureLoading === 'error' && error && (
-        <div className="absolute top-4 right-4 bg-red-600 bg-opacity-90 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg max-w-xs">
-          <div className="flex items-start space-x-2">
-            <svg
-              className="w-5 h-5 text-white flex-shrink-0 mt-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-sm text-white">{error}</span>
-          </div>
+      {isRolling && !canvasLoading && (
+        <div className="absolute bottom-6 left-6 right-6 flex gap-2">
+          <button
+            onClick={() => setSkipAnimation(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors text-sm"
+            aria-label="Skip animation"
+          >
+            跳过动画
+          </button>
         </div>
       )}
     </div>
