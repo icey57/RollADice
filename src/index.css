@@ -29,6 +29,35 @@ body {
   animation: fade-in 0.3s ease-out;
 }
 
+@keyframes dice-roll {
+  0% {
+    transform: rotateX(0) rotateY(0) rotateZ(0);
+  }
+  100% {
+    transform: rotateX(720deg) rotateY(720deg) rotateZ(360deg);
+  }
+}
+
+@keyframes dice-land {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-dice-roll {
+  animation: dice-roll 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-dice-land {
+  animation: dice-land 0.3s ease-out;
+}
+
 @media (max-width: 1024px) {
   aside {
     max-height: 50vh;
